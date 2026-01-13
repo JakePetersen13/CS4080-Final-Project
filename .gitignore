@@ -1,0 +1,6 @@
+.bundle
+log/
+tmp/
+.vscode/
+vendor/bundle
+.DS_Store
