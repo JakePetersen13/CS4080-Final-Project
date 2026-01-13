@@ -1,26 +1,18 @@
-# Ruby Workspace
+#CS 4080 Final Project
 
-Minimal Ruby scaffold for development in VS Code.
+1. Copy/pull code via git or download files and open them in VSC
+2. Open the workspace in VSC and ensure the terminal directory is to the current file
+3. Install ruby on computer if haven't already
+4. in the terminal run the following command:
 
-## Setup
+**gem install sinatra rackup puma**
 
-Install gems:
+5. run the code in terminal via
 
-```bash
-bundle install
-```
+**ruby ./app/main.rb**
 
-Run the app:
+6. in browser, copy the following into the search bar:
 
-```bash
-ruby app/main.rb
-# or
-bin/run
-# or
-rake
-```
+**http://localhost:4567**
 
-## Notes
 
-- Ruby version is set in `.ruby-version` (optional).
-- Recommended VS Code extensions are listed in `.vscode/extensions.json`.
