@@ -1,8 +1,17 @@
+require_relative "../config/boot"
+
+require "imaging/vips_encoder"
+require "mandelbrot/renderer"
+require "mandelbrot/render_service"
+require "mandelbrot/viewport"
+require "mandelbrot/palette_lut_cache"
+require "mandelbrot/palette/base"
 require 'sinatra'
 require 'json'
 
 set :port, 4567
 set :bind, '0.0.0.0'
+
 
 # Mandelbrot calculation
 def mandelbrot(c_re, c_im, max_iter)
@@ -64,37 +73,65 @@ get '/' do
   erb :index
 end
 
+# get '/mandelbrot' do
+#   content_type :json
+  
+#   width = params[:width].to_i
+#   height = params[:height].to_i
+#   center_re = params[:center_re].to_f
+#   center_im = params[:center_im].to_f
+#   zoom = params[:zoom].to_f
+#   max_iter = params[:max_iter]&.to_i || 100
+  
+#   range = 3.5 / zoom
+#   min_re = center_re - range
+#   max_re = center_re + range
+#   min_im = center_im - range * height / width
+#   max_im = center_im + range * height / width
+  
+#   pixels = []
+  
+#   height.times do |y|
+#     width.times do |x|
+#       c_re = min_re + (max_re - min_re) * x / width
+#       c_im = min_im + (max_im - min_im) * y / height
+      
+#       iter = mandelbrot(c_re, c_im, max_iter)
+#       color = get_color(iter, max_iter)
+      
+#       pixels << color
+#     end
+#   end
+  
+#   { pixels: pixels }.to_json
+# end
+
 get '/mandelbrot' do
-  content_type :json
-  
-  width = params[:width].to_i
-  height = params[:height].to_i
-  center_re = params[:center_re].to_f
-  center_im = params[:center_im].to_f
-  zoom = params[:zoom].to_f
-  max_iter = params[:max_iter]&.to_i || 100
-  
-  range = 3.5 / zoom
-  min_re = center_re - range
-  max_re = center_re + range
-  min_im = center_im - range * height / width
-  max_im = center_im + range * height / width
-  
-  pixels = []
-  
-  height.times do |y|
-    width.times do |x|
-      c_re = min_re + (max_re - min_re) * x / width
-      c_im = min_im + (max_im - min_im) * y / height
-      
-      iter = mandelbrot(c_re, c_im, max_iter)
-      color = get_color(iter, max_iter)
-      
-      pixels << color
-    end
-  end
-  
-  { pixels: pixels }.to_json
+  renderer  = Mandelbrot::Renderer.new
+  encoder   = Imaging::VipsEncoder.new(format: :png)
+  lut_cache = Mandelbrot::PaletteLUTCache.new
+
+  render_service = Mandelbrot::RenderService.new(
+      renderer: renderer,
+      encoder: encoder,
+      lut_cache: lut_cache
+    )
+
+  viewport = Mandelbrot::ViewPort.from_params(params)
+  palette  = Mandelbrot::Palette::Base.new
+
+  png_bytes = render_service.render_png(
+    viewport: viewport,
+    palette: palette,
+    max_iter: params[:max_iter]&.to_i,
+  )
+
+  content_type "image/png"
+  headers(
+    "Cache-Control" => "public, max-age=0, must-revalidate"
+  )
+
+  body png_bytes
 end
 
 __END__
@@ -255,19 +292,10 @@ __END__
       
       try {
         const response = await fetch(`/mandelbrot?width=${canvas.width}&height=${canvas.height}&center_re=${centerRe}&center_im=${centerIm}&zoom=${zoom}&max_iter=${maxIter}`);
-        const data = await response.json();
+        const blob = await response.blob();
+        const bmp = await createImageBitmap(blob);
         
-        const imageData = ctx.createImageData(canvas.width, canvas.height);
-        
-        for (let i = 0; i < data.pixels.length; i++) {
-          const idx = i * 4;
-          imageData.data[idx] = data.pixels[i][0];
-          imageData.data[idx + 1] = data.pixels[i][1];
-          imageData.data[idx + 2] = data.pixels[i][2];
-          imageData.data[idx + 3] = 255;
-        }
-        
-        ctx.putImageData(imageData, 0, 0);
+        ctx.drawImage(bmp, 0, 0);
       } catch (error) {
         console.error('Render error:', error);
       } finally {
